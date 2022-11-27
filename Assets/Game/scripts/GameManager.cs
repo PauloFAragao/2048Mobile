@@ -24,10 +24,12 @@ public class GameManager : MonoBehaviour
     //velocidade da movimentação dos blocos
     [SerializeField] private float travelTime = 0.2f;
 
-    //referencia aos campos de texto da interface
+    //referencias da interface
     [SerializeField] private TextMeshProUGUI _pointsText;
     [SerializeField] private TextMeshProUGUI _movesText;
     [SerializeField] private GameObject _gameOverUI;
+    [SerializeField] private GameObject _resetButton;
+
 
     //variável do contador de pontos
     private int _maxValue;
@@ -88,9 +90,9 @@ public class GameManager : MonoBehaviour
 
                 break;
 
-            case GameState.Lose:
+            case GameState.Lose://game over
                 _gameOverUI.SetActive(true);
-                //Debug.Log("GAME OVER");
+                _resetButton.SetActive(false);
                 break;
 
             default:
@@ -98,43 +100,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    void Update()
-    {
-        if (_state == GameState.WaitingInput) ProcessInputs();
-    }
-
-    void ProcessInputs()
-    {
-        //input no touch do cel
-        if (Input.touchCount > 0)
-        {
-            Touch t = Input.GetTouch(0);
-
-            if (t.phase == TouchPhase.Moved)
-            {
-                if (t.deltaPosition.x < -15)//para esquerda
-                {
-                    //Debug.Log("PARA Esquerda");
-                    Shift(Vector2.left);
-                }
-                else if (t.deltaPosition.x > 15)//para direita
-                {
-                    //Debug.Log("PARA Direita");
-                    Shift(Vector2.right);
-                }
-                else if (t.deltaPosition.y > 15)//para cima
-                {
-                    //Debug.Log("PARA Cima");
-                    Shift(Vector2.up);
-                }
-                else if (t.deltaPosition.y < -15)//para baixo
-                {
-                    //Debug.Log("PARA Baixo");
-                    Shift(Vector2.down);
-                }
-            }
-        }
-    }
     //esse método vai ser responsável por criar o tabuleiro
     private void GenerateGrid()
     {
@@ -182,7 +147,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    void SpawnBlock(Node node, int value)
+    private void SpawnBlock(Node node, int value)
     {
         var block = Instantiate(_blockPrefab, node.Pos, Quaternion.identity);//instanciando o novo bloco
         block.Init(GetBlockTypeByValue(value));//chamando o método dentro do bloco para passar o valor dele
@@ -195,7 +160,7 @@ public class GameManager : MonoBehaviour
     }
 
     //método para processar e movimentar os blocos
-    void Shift(Vector2 dir)
+    public void Shift(Vector2 dir)
     {
         needNewBlock = false;//para evitar adicionar um bloco na hora errada
 
@@ -261,7 +226,7 @@ public class GameManager : MonoBehaviour
             });
     }
 
-    void MergeBlocks(Block baseBlock, Block mergingBlock)
+    private void MergeBlocks(Block baseBlock, Block mergingBlock)
     {
         SpawnBlock(baseBlock.node, baseBlock.Value * 2);
 
@@ -269,18 +234,18 @@ public class GameManager : MonoBehaviour
         RemoveBlock(mergingBlock);
     }
 
-    void RemoveBlock(Block block)
+    private void RemoveBlock(Block block)
     {
         _blocks.Remove(block);
         Destroy(block.gameObject);
     }
 
-    Node GetNodeAtPosition(Vector2 pos)
+    private Node GetNodeAtPosition(Vector2 pos)
     {
         return _nodes.FirstOrDefault(n => n.Pos == pos);
     }
 
-    bool CheckGameIsOver()
+    private bool CheckGameIsOver()
     {
 
         if (_blocks.Count() == 16)
@@ -330,6 +295,31 @@ public class GameManager : MonoBehaviour
 
     }
 
+    public void resetGame()
+    {
+        //resetando os blocos
+        for (var x = _blocks.Count; x > 0; x--)
+        {
+            Destroy(_blocks[x - 1].gameObject);
+            _blocks.Remove(_blocks[x - 1]);
+        }
+
+        //resetando os nodes
+        foreach (var x in _nodes)
+        {
+            x.resetNode();
+        }
+
+        //resetando o GameState
+        ChangeState(GameState.GenerateLevel);
+
+        //tirando a ui de game over da tela
+        _gameOverUI.SetActive(false);
+
+        //colocando o botão de novo jogo de volta a tela
+        _resetButton.SetActive(true);
+
+    }
 
 }
 
