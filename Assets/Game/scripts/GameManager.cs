@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using DG.Tweening;
+using TMPro;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -22,6 +23,14 @@ public class GameManager : MonoBehaviour
 
     //velocidade da movimentação dos blocos
     [SerializeField] private float travelTime = 0.2f;
+
+    //referencia aos campos de texto da interface
+    [SerializeField] private TextMeshProUGUI _pointsText;
+    [SerializeField] private TextMeshProUGUI _movesText;
+    [SerializeField] private GameObject _gameOverUI;
+
+    //variável do contador de pontos
+    private int _maxValue;
 
     //listas
     private List<Node> _nodes;
@@ -56,7 +65,10 @@ public class GameManager : MonoBehaviour
 
             case GameState.SpawningBlocks:
                 if (needNewBlock)
+                {
+                    _movesText.text = "Jogadas: " + (_round).ToString();
                     SpawnBlocks(_round++ == 0 ? 2 : 1);
+                }
 
                 ChangeState(GameState.CheckGameOver);
                 break;
@@ -77,8 +89,8 @@ public class GameManager : MonoBehaviour
                 break;
 
             case GameState.Lose:
-                //loseScreen.SetActive(true);
-                Debug.Log("GAME OVER");
+                _gameOverUI.SetActive(true);
+                //Debug.Log("GAME OVER");
                 break;
 
             default:
@@ -100,22 +112,22 @@ public class GameManager : MonoBehaviour
 
             if (t.phase == TouchPhase.Moved)
             {
-                if (t.deltaPosition.x < -25)//para esquerda
+                if (t.deltaPosition.x < -15)//para esquerda
                 {
                     //Debug.Log("PARA Esquerda");
                     Shift(Vector2.left);
                 }
-                else if (t.deltaPosition.x > 25)//para direita
+                else if (t.deltaPosition.x > 15)//para direita
                 {
                     //Debug.Log("PARA Direita");
                     Shift(Vector2.right);
                 }
-                else if (t.deltaPosition.y > 25)//para cima
+                else if (t.deltaPosition.y > 15)//para cima
                 {
                     //Debug.Log("PARA Cima");
                     Shift(Vector2.up);
                 }
-                else if (t.deltaPosition.y < -25)//para baixo
+                else if (t.deltaPosition.y < -15)//para baixo
                 {
                     //Debug.Log("PARA Baixo");
                     Shift(Vector2.down);
@@ -128,6 +140,7 @@ public class GameManager : MonoBehaviour
     {
         //marcando que é o começo do jogo
         _round = 0;
+        _maxValue = 0;
 
         //indicando a necessidade de spawn dos blocos
         needNewBlock = true;
@@ -175,6 +188,10 @@ public class GameManager : MonoBehaviour
         block.Init(GetBlockTypeByValue(value));//chamando o método dentro do bloco para passar o valor dele
         block.SetBlock(node);//passando o node onde o bloco está
         _blocks.Add(block);//adicionando o bloco a lista
+
+        _maxValue = value > _maxValue ? value : _maxValue;
+
+        _pointsText.text = "Pontos: " + _maxValue.ToString();
     }
 
     //método para processar e movimentar os blocos
