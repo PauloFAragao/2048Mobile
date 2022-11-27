@@ -310,15 +310,19 @@ public class GameManager : MonoBehaviour
             x.resetNode();
         }
 
-        //resetando o GameState
-        ChangeState(GameState.GenerateLevel);
-
         //tirando a ui de game over da tela
         _gameOverUI.SetActive(false);
 
         //colocando o botão de novo jogo de volta a tela
         _resetButton.SetActive(true);
 
+        //reiniciando valores
+        _round = 0;
+        _maxValue = 0;
+        needNewBlock = true;
+
+        //resetando o GameState
+        ChangeState(GameState.SpawningBlocks);
     }
 
 }
