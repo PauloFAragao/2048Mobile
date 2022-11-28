@@ -50,6 +50,29 @@ public class GameManager : MonoBehaviour
     //para setar os valores de acordo com o valor correto
     private BlockType GetBlockTypeByValue(int value) => _types.First(t => t.Value == value);
 
+    void Awake()//tentando resolver o problema da proporção
+    {
+        //Debug.Log("Screen.width: "+Screen.width);//horizontal
+        //Debug.Log("Screen.height" + Screen.height);//vertical
+
+        if( Screen.height / Screen.width > 2.222f )//proporção de 9:20
+        {
+            Camera.main.aspect = 9f/20f;
+            //Debug.Log("escolheu essa opção: 9f/20f");
+        }
+        else if( Screen.height / Screen.width > 2f )//proporção de 9:18
+        {
+            Camera.main.aspect = 9f/18f;
+            //Debug.Log("escolheu essa opção: 9f/18f");
+        }
+        else//proporção de 9/16 -- 1.777
+        {
+            Camera.main.aspect = 9f/16f;
+            //Debug.Log("escolheu essa opção: 9f/16f");
+        }
+
+    }
+
     void Start()
     {
         ChangeState(GameState.GenerateLevel);
@@ -156,7 +179,7 @@ public class GameManager : MonoBehaviour
 
         _maxValue = value > _maxValue ? value : _maxValue;
 
-        _pointsText.text = "Pontos: " + _maxValue.ToString();
+        _pointsText.text = _maxValue.ToString();
     }
 
     //método para processar e movimentar os blocos
