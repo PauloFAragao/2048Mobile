@@ -29,6 +29,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI _movesText;
     [SerializeField] private GameObject _gameOverUI;
     [SerializeField] private GameObject _resetButton;
+    [SerializeField] private GameObject _soundOnButton;
+    [SerializeField] private GameObject _soundOffButton;
+
+    [SerializeField] private AudioManager audioManager;
 
 
     //variável do contador de pontos
@@ -47,6 +51,10 @@ public class GameManager : MonoBehaviour
     //variável que indica a necessidade de spawnar novos blocos
     private bool needNewBlock;
 
+    //variáveis de som
+    public bool soundIsOn;
+    private bool playMergeSound;
+
     //para setar os valores de acordo com o valor correto
     private BlockType GetBlockTypeByValue(int value) => _types.First(t => t.Value == value);
 
@@ -55,19 +63,19 @@ public class GameManager : MonoBehaviour
         //Debug.Log("Screen.width: "+Screen.width);//horizontal
         //Debug.Log("Screen.height" + Screen.height);//vertical
 
-        if( Screen.height / Screen.width > 2.222f )//proporção de 9:20
+        if (Screen.height / Screen.width > 2.222f)//proporção de 9:20
         {
-            Camera.main.aspect = 9f/20f;
+            Camera.main.aspect = 9f / 20f;
             //Debug.Log("escolheu essa opção: 9f/20f");
         }
-        else if( Screen.height / Screen.width > 2f )//proporção de 9:18
+        else if (Screen.height / Screen.width > 2f)//proporção de 9:18
         {
-            Camera.main.aspect = 9f/18f;
+            Camera.main.aspect = 9f / 18f;
             //Debug.Log("escolheu essa opção: 9f/18f");
         }
         else//proporção de 9/16 -- 1.777
         {
-            Camera.main.aspect = 9f/16f;
+            Camera.main.aspect = 9f / 16f;
             //Debug.Log("escolheu essa opção: 9f/16f");
         }
 
@@ -133,6 +141,9 @@ public class GameManager : MonoBehaviour
         //indicando a necessidade de spawn dos blocos
         needNewBlock = true;
 
+        //indicando que o som inicia ligado
+        soundIsOn = true;
+
         //iniciando as listas
         _nodes = new List<Node>();//lista de nodes
         _blocks = new List<Block>();//lista de blocos
@@ -186,6 +197,7 @@ public class GameManager : MonoBehaviour
     public void Shift(Vector2 dir)
     {
         needNewBlock = false;//para evitar adicionar um bloco na hora errada
+        playMergeSound = false;
 
         ChangeState(GameState.Moving);//mudando o estado do jogo para movendo blocos
 
@@ -214,12 +226,20 @@ public class GameManager : MonoBehaviour
                     {
                         block.MergeBlock(possibleNode.OccupiedBlock);
                         needNewBlock = true;
+
+                        if (soundIsOn)
+                            audioManager.playMoveSfx();
+
+                        playMergeSound = true;
                     }
                     //verifica se proximo espaço está ocupado
                     if (possibleNode.OccupiedBlock == null)
                     {
                         next = possibleNode;
                         needNewBlock = true;
+
+                        if (soundIsOn)
+                            audioManager.playMoveSfx();
                     }
                 }
 
@@ -244,6 +264,9 @@ public class GameManager : MonoBehaviour
                 {
                     MergeBlocks(block.mergingBlock, block);
                 }
+
+                if (soundIsOn && playMergeSound)
+                    audioManager.playMergeSfx();
 
                 ChangeState(GameState.SpawningBlocks);
             });
@@ -346,6 +369,20 @@ public class GameManager : MonoBehaviour
 
         //resetando o GameState
         ChangeState(GameState.SpawningBlocks);
+    }
+
+    public void TurnOffSound()
+    {
+        soundIsOn = false;
+        _soundOnButton.SetActive(false);
+        _soundOffButton.SetActive(true);
+    }
+
+    public void TurnOnSound()
+    {
+        soundIsOn = true;
+        _soundOnButton.SetActive(true);
+        _soundOffButton.SetActive(false);
     }
 
 }
