@@ -27,16 +27,19 @@ public class GameManager : MonoBehaviour
     //referencias da interface
     [SerializeField] private TextMeshProUGUI _pointsText;
     [SerializeField] private TextMeshProUGUI _movesText;
+    [SerializeField] private TextMeshProUGUI _scoreText;
     [SerializeField] private GameObject _gameOverUI;
-    [SerializeField] private GameObject _resetButton;
+    [SerializeField] private GameObject _gameMenu;
+    [SerializeField] private GameObject _settingsMenu;
+    [SerializeField] private GameObject _newGameConfirm;
     [SerializeField] private GameObject _soundOnButton;
     [SerializeField] private GameObject _soundOffButton;
 
     [SerializeField] private AudioManager audioManager;
 
-
     //variável do contador de pontos
     private int _maxValue;
+    private int _score;
 
     //listas
     private List<Node> _nodes;
@@ -44,6 +47,9 @@ public class GameManager : MonoBehaviour
 
     //controlador do estado do jogo
     private GameState _state;
+
+    //pause do jogo
+    public bool _gamePause;
 
     //variável para marcar se é o começo do jogo
     private int _round;
@@ -60,23 +66,17 @@ public class GameManager : MonoBehaviour
 
     void Awake()//tentando resolver o problema da proporção
     {
-        //Debug.Log("Screen.width: "+Screen.width);//horizontal
-        //Debug.Log("Screen.height" + Screen.height);//vertical
-
         if (Screen.height / Screen.width > 2.222f)//proporção de 9:20
         {
             Camera.main.aspect = 9f / 20f;
-            //Debug.Log("escolheu essa opção: 9f/20f");
         }
         else if (Screen.height / Screen.width > 2f)//proporção de 9:18
         {
             Camera.main.aspect = 9f / 18f;
-            //Debug.Log("escolheu essa opção: 9f/18f");
         }
         else//proporção de 9/16 -- 1.777
         {
             Camera.main.aspect = 9f / 16f;
-            //Debug.Log("escolheu essa opção: 9f/16f");
         }
 
     }
@@ -99,7 +99,7 @@ public class GameManager : MonoBehaviour
             case GameState.SpawningBlocks:
                 if (needNewBlock)
                 {
-                    _movesText.text = "Jogadas: " + (_round).ToString();
+                    _movesText.text = "Jogadas: " + _round.ToString();
                     SpawnBlocks(_round++ == 0 ? 2 : 1);
                 }
 
@@ -123,7 +123,6 @@ public class GameManager : MonoBehaviour
 
             case GameState.Lose://game over
                 _gameOverUI.SetActive(true);
-                _resetButton.SetActive(false);
                 break;
 
             default:
@@ -137,6 +136,12 @@ public class GameManager : MonoBehaviour
         //marcando que é o começo do jogo
         _round = 0;
         _maxValue = 0;
+        _score = 0;
+
+        _gamePause = false;
+
+        //interface
+        _scoreText.text = "0";
 
         //indicando a necessidade de spawn dos blocos
         needNewBlock = true;
@@ -231,6 +236,12 @@ public class GameManager : MonoBehaviour
                             audioManager.playMoveSfx();
 
                         playMergeSound = true;
+
+                        //contabilizando pontos
+                        _score += (block.Value * 2);
+
+                        //interface
+                        _scoreText.text = _score.ToString();
                     }
                     //verifica se proximo espaço está ocupado
                     if (possibleNode.OccupiedBlock == null)
@@ -341,7 +352,8 @@ public class GameManager : MonoBehaviour
 
     }
 
-    public void resetGame()
+//métodos para serem chamados pelos menus
+    public void ResetGame()
     {
         //resetando os blocos
         for (var x = _blocks.Count; x > 0; x--)
@@ -359,16 +371,45 @@ public class GameManager : MonoBehaviour
         //tirando a ui de game over da tela
         _gameOverUI.SetActive(false);
 
-        //colocando o botão de novo jogo de volta a tela
-        _resetButton.SetActive(true);
+        //tirando a ui de menu da tela
+        _gameMenu.SetActive(false);
+        _gamePause = false;
 
         //reiniciando valores
         _round = 0;
         _maxValue = 0;
+        _score = 0;
         needNewBlock = true;
+
+        //interface
+        _scoreText.text = "0";
 
         //resetando o GameState
         ChangeState(GameState.SpawningBlocks);
+    }
+
+    public void MenuButton(bool Value)
+    {
+        _gamePause = Value;
+        _gameMenu.SetActive(Value);
+    }
+
+    public void SettingsMenu(bool Value)
+    {
+        _settingsMenu.SetActive(Value);
+        _gameMenu.SetActive(!Value);
+    }
+
+    public void NewGameShowWindow()
+    {
+        _newGameConfirm.SetActive(true);
+    }
+
+    public void NewGameConfirm(bool Value)
+    {
+        if(Value) ResetGame();
+
+        _newGameConfirm.SetActive(false);
     }
 
     public void TurnOffSound()

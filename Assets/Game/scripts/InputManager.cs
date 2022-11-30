@@ -12,7 +12,7 @@ public class InputManager : MonoBehaviour
 
     void Update()
     {
-        if (Input.touchCount > 0)
+        if (Input.touchCount > 0 && !gm._gamePause)
         {
             Touch t = Input.GetTouch(0);
 
