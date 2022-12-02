@@ -35,6 +35,7 @@ public class Block : MonoBehaviour
 
         //adicionando o valor ao texto do bloco
         _text.text = type.Value.ToString();
+
     }
 
     public void SetBlock(Node _node)

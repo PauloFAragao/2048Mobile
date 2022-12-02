@@ -45,6 +45,7 @@ public class GameManager : MonoBehaviour
     private List<Node> _nodes;
     private List<Block> _blocks;
 
+
     //controlador do estado do jogo
     private GameState _state;
 
@@ -60,6 +61,12 @@ public class GameManager : MonoBehaviour
     //variáveis de som
     public bool soundIsOn;
     private bool playMergeSound;
+
+    //histórico
+    private List<History> _blocksHistory;
+    private int _scoreHistory;
+    private bool wasUndo;
+    private int previousBlocksAmount;
 
     //para setar os valores de acordo com o valor correto
     private BlockType GetBlockTypeByValue(int value) => _types.First(t => t.Value == value);
@@ -99,7 +106,7 @@ public class GameManager : MonoBehaviour
             case GameState.SpawningBlocks:
                 if (needNewBlock)
                 {
-                    _movesText.text = "Jogadas: " + _round.ToString();
+                    _movesText.text = "Jogadas: " + _round;
                     SpawnBlocks(_round++ == 0 ? 2 : 1);
                 }
 
@@ -153,6 +160,8 @@ public class GameManager : MonoBehaviour
         _nodes = new List<Node>();//lista de nodes
         _blocks = new List<Block>();//lista de blocos
 
+        _blocksHistory = new List<History>();
+
         //criando os nodes 
         for (int x = 0; x < _width; x++)
         {
@@ -193,8 +202,8 @@ public class GameManager : MonoBehaviour
         block.SetBlock(node);//passando o node onde o bloco está
         _blocks.Add(block);//adicionando o bloco a lista
 
+        //pontuação
         _maxValue = value > _maxValue ? value : _maxValue;
-
         _pointsText.text = _maxValue.ToString();
     }
 
@@ -203,6 +212,9 @@ public class GameManager : MonoBehaviour
     {
         needNewBlock = false;//para evitar adicionar um bloco na hora errada
         playMergeSound = false;
+
+        //salvando o score
+        _scoreHistory = _score;
 
         ChangeState(GameState.Moving);//mudando o estado do jogo para movendo blocos
 
@@ -229,6 +241,9 @@ public class GameManager : MonoBehaviour
                     //verifica se os blocos podem se juntar
                     if (possibleNode.OccupiedBlock != null && possibleNode.OccupiedBlock.CanMerge(block.Value))
                     {
+                        //criando histórico
+                        CreateHistory();
+
                         block.MergeBlock(possibleNode.OccupiedBlock);
                         needNewBlock = true;
 
@@ -246,6 +261,9 @@ public class GameManager : MonoBehaviour
                     //verifica se proximo espaço está ocupado
                     if (possibleNode.OccupiedBlock == null)
                     {
+                        //criando histórico
+                        CreateHistory();
+
                         next = possibleNode;
                         needNewBlock = true;
 
@@ -257,9 +275,9 @@ public class GameManager : MonoBehaviour
             } while (next != block.node);
 
             block.transform.DOMove(block.node.Pos, travelTime);
-
         }
 
+        //DOTween
         var sequence = DOTween.Sequence();
 
         foreach (var block in orderedBlocks)
@@ -283,6 +301,29 @@ public class GameManager : MonoBehaviour
             });
     }
 
+    //método que vai criar o histórico para permitir a função de voltar
+    private void CreateHistory()
+    {
+        //loop para salvar o estado atual dos blocos
+        for (var x = 0; x < _blocks.Count; x++)
+        {
+            if (_blocksHistory.Count < _blocks.Count)
+            {
+                History h = new History(_blocks[x].Value, _blocks[x].Pos);
+                _blocksHistory.Add(h);
+            }
+            else
+                _blocksHistory[x].SetValues(_blocks[x].Value, _blocks[x].Pos);
+        }
+
+        //sinalizando que tem histórico para voltar
+        wasUndo = false;
+
+        //guardando a quantidade de blocos atual
+        previousBlocksAmount = _blocks.Count;
+    }
+
+    //método que vai "juntar" os blocos
     private void MergeBlocks(Block baseBlock, Block mergingBlock)
     {
         SpawnBlock(baseBlock.node, baseBlock.Value * 2);
@@ -291,6 +332,7 @@ public class GameManager : MonoBehaviour
         RemoveBlock(mergingBlock);
     }
 
+    //método que vai deletar os blocos
     private void RemoveBlock(Block block)
     {
         _blocks.Remove(block);
@@ -304,7 +346,6 @@ public class GameManager : MonoBehaviour
 
     private bool CheckGameIsOver()
     {
-
         if (_blocks.Count() == 16)
         {
             var orderedBlocks = _blocks.OrderBy(b => b.Pos.x).ThenBy(b => b.Pos.y).ToList();
@@ -347,12 +388,10 @@ public class GameManager : MonoBehaviour
 
             else return true;
         }
-
         return false;
-
     }
 
-//métodos para serem chamados pelos menus
+    //métodos para serem chamados pelos menus
     public void ResetGame()
     {
         //resetando os blocos
@@ -382,6 +421,8 @@ public class GameManager : MonoBehaviour
         needNewBlock = true;
 
         //interface
+        _pointsText.text = "0";
+        _movesText.text = "0";
         _scoreText.text = "0";
 
         //resetando o GameState
@@ -407,7 +448,7 @@ public class GameManager : MonoBehaviour
 
     public void NewGameConfirm(bool Value)
     {
-        if(Value) ResetGame();
+        if (Value) ResetGame();
 
         _newGameConfirm.SetActive(false);
     }
@@ -426,6 +467,72 @@ public class GameManager : MonoBehaviour
         _soundOffButton.SetActive(false);
     }
 
+    public void Undo()
+    {
+        //se for o primeiro turno
+        if (_round < 2) return;
+
+        //se já houve um voltar
+        if (wasUndo) return;
+
+        wasUndo = true;//sinaliza que já houve um voltar
+
+        //quantidade de vezes que o loop deve rodar para recolocar os blocos
+        int size = previousBlocksAmount;
+
+        //resetando os blocos
+        for (var x = _blocks.Count; x > 0; x--)
+        {
+            Destroy(_blocks[x - 1].gameObject);
+            _blocks.Remove(_blocks[x - 1]);
+        }
+
+        //resetando os nodes
+        foreach (var x in _nodes)
+        {
+            x.resetNode();
+        }
+
+        //reiniciando valores
+        _round--;
+        _maxValue = 0;
+        _score = _scoreHistory;
+
+        //re-colocando os blocos no tabuleiro
+        for (var x = size; x > 0; x--)
+        {
+            var block = Instantiate(_blockPrefab, _blocksHistory[x - 1]._pos, Quaternion.identity);//instanciando o novo bloco
+            block.Init(GetBlockTypeByValue(_blocksHistory[x - 1]._value));//chamando o método dentro do bloco para passar o valor dele
+            block.SetBlock(_nodes.Find(n => n.Pos == _blocksHistory[x - 1]._pos));//passando o node onde o bloco está
+            _blocks.Add(block);//adicionando o bloco a lista
+
+            //maior valor entre os blocos
+            _maxValue = _blocksHistory[x - 1]._value > _maxValue ? _blocksHistory[x - 1]._value : _maxValue;
+        }
+
+        //interface
+        _pointsText.text = _maxValue.ToString();
+        _movesText.text = "Jogadas: " + (_round - 1);
+        _scoreText.text = _score.ToString();
+    }
+}
+
+public class History
+{
+    public int _value;
+    public Vector2 _pos;
+
+    public History(int value, Vector2 pos)
+    {
+        _value = value;
+        _pos = pos;
+    }
+
+    public void SetValues(int value, Vector2 pos)
+    {
+        _value = value;
+        _pos = pos;
+    }
 }
 
 [Serializable]
