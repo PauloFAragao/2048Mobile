@@ -13,6 +13,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int _width = 4;
     [SerializeField] private int _height = 4;
 
+    //ToastFactory
+    [SerializeField] private ToastFactory toastFactory;
+
     //prefabs
     [SerializeField] private Node _nodePrefab;
     [SerializeField] private Block _blockPrefab;
@@ -34,6 +37,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject _newGameConfirm;
     [SerializeField] private GameObject _soundOnButton;
     [SerializeField] private GameObject _soundOffButton;
+    [SerializeField] private GameObject _saveLoadWindow;
 
     [SerializeField] private AudioManager audioManager;
 
@@ -90,7 +94,8 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        ChangeState(GameState.GenerateLevel);
+        //ChangeState(GameState.GenerateLevel);
+        ChangeState(GameState.LoadData);
     }
 
     private void ChangeState(GameState newState)
@@ -99,6 +104,16 @@ public class GameManager : MonoBehaviour
 
         switch (newState)
         {
+            case GameState.LoadData:
+
+                if (!PlayerPrefs.HasKey("score") || PlayerPrefs.GetInt("score") == -1) //sem dados
+                    ChangeState(GameState.GenerateLevel);
+
+                else
+                    LoadData();
+
+                break;
+
             case GameState.GenerateLevel:
                 GenerateGrid();
                 break;
@@ -153,8 +168,14 @@ public class GameManager : MonoBehaviour
         //indicando a necessidade de spawn dos blocos
         needNewBlock = true;
 
-        //indicando que o som inicia ligado
-        soundIsOn = true;
+        //carregando configuração de som
+        if (PlayerPrefs.HasKey("soundIsOn"))
+        {
+            if (PlayerPrefs.GetInt("soundIsOn") == 1) TurnOnSound();
+            else TurnOffSound();
+        }
+        else
+            soundIsOn = true;
 
         //iniciando as listas
         _nodes = new List<Node>();//lista de nodes
@@ -391,6 +412,87 @@ public class GameManager : MonoBehaviour
         return false;
     }
 
+    //métodos de save e load
+    public void SaveSettings()
+    {
+        //salvando se o som está ligado ou não
+        PlayerPrefs.SetInt("soundIsOn", soundIsOn ? 1 : 0);
+    }
+
+    private void SaveData()
+    {
+        if (CheckGameIsOver()) return;
+
+        PlayerPrefs.SetInt("score", _score);
+        PlayerPrefs.SetInt("rounds", _round);
+
+        PlayerPrefs.SetInt("blocksIndex", _blocks.Count);
+
+        for (var x = 0; x < _blocks.Count; x++)
+        {
+            PlayerPrefs.SetInt("valorB" + x, _blocks[x].Value);
+            PlayerPrefs.SetFloat("xB" + x, _blocks[x].Pos.x);
+            PlayerPrefs.SetFloat("yB" + x, _blocks[x].Pos.y);
+        }
+
+    }
+
+    private void LoadData()
+    {
+        _gamePause = false;
+        needNewBlock = true;
+
+        wasUndo = true;//para evitar bug
+
+        //som
+        if (PlayerPrefs.GetInt("soundIsOn") == 1) TurnOnSound();
+        else TurnOffSound();
+
+        //iniciando as listas
+        _nodes = new List<Node>();//lista de nodes
+        _blocks = new List<Block>();//lista de blocos
+        _blocksHistory = new List<History>();
+
+
+        _score = PlayerPrefs.GetInt("score");
+        _round = PlayerPrefs.GetInt("rounds");
+
+        _pointsText.text = "0";
+
+        _scoreText.text = _score.ToString();
+        _movesText.text = "Jogadas: " + (_round - 1);
+
+        var index = PlayerPrefs.GetInt("blocksIndex");
+
+        //criando os nodes 
+        for (int x = 0; x < _width; x++)
+        {
+            for (int y = 0; y < _width; y++)
+            {
+                var node = Instantiate(_nodePrefab, new Vector2(x, y), Quaternion.identity);
+                _nodes.Add(node);
+            }
+        }
+
+        //fundo
+        var center = new Vector2((float)_width / 2 - 0.5f, (float)_height / 2 - 0.5f);
+        var board = Instantiate(_boardPrefab, center, Quaternion.identity);
+        board.size = new Vector2(_width, _height);
+
+        //centralizando a camera
+        Camera.main.transform.position = new Vector3(center.x, center.y, -10);
+
+        //mudando o estado
+        ChangeState(GameState.WaitingInput);
+
+        //spawnando os blocos
+        for (var x = 0; x < index; x++)
+        {
+            Vector2 vec = new Vector2(PlayerPrefs.GetFloat("xB" + x), PlayerPrefs.GetFloat("yB" + x));//criando o vector 2
+            SpawnBlock(_nodes.Find(n => n.Pos == vec), PlayerPrefs.GetInt("valorB" + x));
+        }
+    }
+
     //métodos para serem chamados pelos menus
     public void ResetGame()
     {
@@ -446,6 +548,11 @@ public class GameManager : MonoBehaviour
         _newGameConfirm.SetActive(true);
     }
 
+    public void SaveLoadShowWindow(bool Value)
+    {
+        _saveLoadWindow.SetActive(Value);
+    }
+
     public void NewGameConfirm(bool Value)
     {
         if (Value) ResetGame();
@@ -467,6 +574,66 @@ public class GameManager : MonoBehaviour
         _soundOffButton.SetActive(false);
     }
 
+    public void SaveGame()
+    {
+        SaveData();
+
+        toastFactory.SendToastyToast("Jogo Salvo!");
+    }
+
+    public void DeleteData()
+    {
+        PlayerPrefs.SetInt("score", -1);
+
+        toastFactory.SendToastyToast("Dados Deletados!");
+    }
+
+    public void LoadGame()
+    {
+        if (!PlayerPrefs.HasKey("score") || PlayerPrefs.GetInt("score") == -1) //sem dados
+        {
+            toastFactory.SendToastyToast("Sem Dados Salvos!");
+            return;
+        }
+
+        wasUndo = true;//sinaliza que já houve um voltar
+
+        //quantidade de vezes que o loop deve rodar para recolocar os blocos
+        int size = previousBlocksAmount;
+
+        //resetando os blocos
+        for (var x = _blocks.Count; x > 0; x--)
+        {
+            Destroy(_blocks[x - 1].gameObject);
+            _blocks.Remove(_blocks[x - 1]);
+        }
+
+        //resetando os nodes
+        foreach (var x in _nodes)
+        {
+            x.resetNode();
+        }
+
+        _score = PlayerPrefs.GetInt("score");
+        _round = PlayerPrefs.GetInt("rounds");
+        _maxValue = 0;
+
+        _pointsText.text = "0";
+
+        _scoreText.text = _score.ToString();
+        _movesText.text = "Jogadas: " + (_round - 1);
+
+        var index = PlayerPrefs.GetInt("blocksIndex");
+
+        //spawnando os blocos
+        for (var x = 0; x < index; x++)
+        {
+            Vector2 vec = new Vector2(PlayerPrefs.GetFloat("xB" + x), PlayerPrefs.GetFloat("yB" + x));//criando o vector 2
+            SpawnBlock(_nodes.Find(n => n.Pos == vec), PlayerPrefs.GetInt("valorB" + x));
+        }
+
+    }
+
     public void Undo()
     {
         //se for o primeiro turno
@@ -474,6 +641,9 @@ public class GameManager : MonoBehaviour
 
         //se já houve um voltar
         if (wasUndo) return;
+
+        //se o jogo estiver pausado
+        if (_gamePause) return;
 
         wasUndo = true;//sinaliza que já houve um voltar
 
@@ -501,17 +671,10 @@ public class GameManager : MonoBehaviour
         //re-colocando os blocos no tabuleiro
         for (var x = size; x > 0; x--)
         {
-            var block = Instantiate(_blockPrefab, _blocksHistory[x - 1]._pos, Quaternion.identity);//instanciando o novo bloco
-            block.Init(GetBlockTypeByValue(_blocksHistory[x - 1]._value));//chamando o método dentro do bloco para passar o valor dele
-            block.SetBlock(_nodes.Find(n => n.Pos == _blocksHistory[x - 1]._pos));//passando o node onde o bloco está
-            _blocks.Add(block);//adicionando o bloco a lista
-
-            //maior valor entre os blocos
-            _maxValue = _blocksHistory[x - 1]._value > _maxValue ? _blocksHistory[x - 1]._value : _maxValue;
+            SpawnBlock(_nodes.Find(n => n.Pos == _blocksHistory[x - 1]._pos), _blocksHistory[x - 1]._value);
         }
 
         //interface
-        _pointsText.text = _maxValue.ToString();
         _movesText.text = "Jogadas: " + (_round - 1);
         _scoreText.text = _score.ToString();
     }
@@ -549,5 +712,7 @@ public enum GameState
     WaitingInput,
     Moving,
     CheckGameOver,
-    Lose
+    Lose,
+    LoadData
 }
+
