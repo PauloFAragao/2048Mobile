@@ -177,6 +177,10 @@ public class GameManager : MonoBehaviour
         else
             soundIsOn = true;
 
+        //volume
+        if (PlayerPrefs.HasKey("soundVol"))
+            audioManager.LoadVol(PlayerPrefs.GetFloat("soundVol"));
+
         //iniciando as listas
         _nodes = new List<Node>();//lista de nodes
         _blocks = new List<Block>();//lista de blocos
@@ -417,6 +421,9 @@ public class GameManager : MonoBehaviour
     {
         //salvando se o som está ligado ou não
         PlayerPrefs.SetInt("soundIsOn", soundIsOn ? 1 : 0);
+
+        //salvando o volume
+        PlayerPrefs.SetFloat("soundVol", audioManager.GetMasterVol());
     }
 
     private void SaveData()
@@ -447,6 +454,10 @@ public class GameManager : MonoBehaviour
         //som
         if (PlayerPrefs.GetInt("soundIsOn") == 1) TurnOnSound();
         else TurnOffSound();
+
+        //volume
+        if (PlayerPrefs.HasKey("soundVol"))
+            audioManager.LoadVol(PlayerPrefs.GetFloat("soundVol"));
 
         //iniciando as listas
         _nodes = new List<Node>();//lista de nodes
@@ -631,6 +642,8 @@ public class GameManager : MonoBehaviour
             Vector2 vec = new Vector2(PlayerPrefs.GetFloat("xB" + x), PlayerPrefs.GetFloat("yB" + x));//criando o vector 2
             SpawnBlock(_nodes.Find(n => n.Pos == vec), PlayerPrefs.GetInt("valorB" + x));
         }
+
+        _gameOverUI.SetActive(false);
 
     }
 

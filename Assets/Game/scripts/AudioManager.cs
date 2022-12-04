@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.UI;
 using UnityEngine;
+using UnityEngine.Audio;
 
 public class AudioManager : MonoBehaviour
 {
@@ -12,6 +14,12 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioSource audioSource;
 
     [SerializeField] private GameManager gm;
+
+    [SerializeField] private Slider slider;
+
+    private float _vol;
+
+    public AudioMixer mixer;
 
     public void playMoveSfx()
     {
@@ -33,6 +41,24 @@ public class AudioManager : MonoBehaviour
     {
         audioSource.clip = clip;
         audioSource.Play();
+    }
+
+    public void SetMasterVol(float vol)
+    {
+        _vol = vol;
+        mixer.SetFloat("MasterVol", vol <= 0 ? -80 : 20 * Mathf.Log10(vol));
+    }
+
+    public float GetMasterVol()
+    {
+        return _vol;
+    }
+
+    public void LoadVol(float vol)
+    {
+        slider.value = vol;
+
+        mixer.SetFloat("MasterVol", vol <= 0 ? -80 : 20 * Mathf.Log10(vol));
     }
 
 }
