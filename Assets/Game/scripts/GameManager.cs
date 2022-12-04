@@ -89,7 +89,6 @@ public class GameManager : MonoBehaviour
         {
             Camera.main.aspect = 9f / 16f;
         }
-
     }
 
     void Start()
@@ -177,9 +176,11 @@ public class GameManager : MonoBehaviour
         else
             soundIsOn = true;
 
-        //volume
+        //carregando volume
         if (PlayerPrefs.HasKey("soundVol"))
             audioManager.LoadVol(PlayerPrefs.GetFloat("soundVol"));
+        else
+            audioManager.LoadVol(100f);
 
         //iniciando as listas
         _nodes = new List<Node>();//lista de nodes
@@ -281,7 +282,8 @@ public class GameManager : MonoBehaviour
                         _score += (block.Value * 2);
 
                         //interface
-                        _scoreText.text = _score.ToString();
+                        //_scoreText.text = _score.ToString();
+                        WriteScore(_score);
                     }
                     //verifica se proximo espaço está ocupado
                     if (possibleNode.OccupiedBlock == null)
@@ -324,6 +326,22 @@ public class GameManager : MonoBehaviour
 
                 ChangeState(GameState.SpawningBlocks);
             });
+    }
+
+    //método para escrever na interface o valor do score de forma reduzida
+    private void WriteScore(int value)
+    {
+        if (value < 10000)
+            _scoreText.text = _score.ToString();
+
+        else
+        {
+            if (value < 1000000)
+                _scoreText.text = Math.Round((float)_score / 1000, 1) + "K";
+
+                else
+                _scoreText.text = Math.Round((float)_score / 1000000, 1) + "M";
+        }
     }
 
     //método que vai criar o histórico para permitir a função de voltar
@@ -470,7 +488,8 @@ public class GameManager : MonoBehaviour
 
         _pointsText.text = "0";
 
-        _scoreText.text = _score.ToString();
+        //_scoreText.text = _score.ToString();
+        WriteScore(_score);
         _movesText.text = "Jogadas: " + (_round - 1);
 
         var index = PlayerPrefs.GetInt("blocksIndex");
@@ -631,7 +650,8 @@ public class GameManager : MonoBehaviour
 
         _pointsText.text = "0";
 
-        _scoreText.text = _score.ToString();
+        //_scoreText.text = _score.ToString();
+        WriteScore(_score);
         _movesText.text = "Jogadas: " + (_round - 1);
 
         var index = PlayerPrefs.GetInt("blocksIndex");
@@ -689,7 +709,8 @@ public class GameManager : MonoBehaviour
 
         //interface
         _movesText.text = "Jogadas: " + (_round - 1);
-        _scoreText.text = _score.ToString();
+        //_scoreText.text = _score.ToString();
+        WriteScore(_score);
     }
 }
 
@@ -728,4 +749,3 @@ public enum GameState
     Lose,
     LoadData
 }
-
